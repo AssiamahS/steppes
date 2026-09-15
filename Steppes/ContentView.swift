@@ -47,6 +47,7 @@ struct ContentView: View {
             ZStack {
                 StepRing(progress: progress, lineWidth: 24)
                     .frame(width: 240, height: 240)
+                    .animation(.easeOut(duration: 0.6), value: progress)
                 VStack(spacing: 4) {
                     Text(store.snapshot.steps, format: .number)
                         .font(.system(size: 56, weight: .heavy, design: .rounded))
@@ -158,24 +159,6 @@ struct ContentView: View {
 }
 
 // MARK: - Pieces
-
-struct StepRing: View {
-    var progress: Double
-    var lineWidth: CGFloat = 20
-
-    var body: some View {
-        ZStack {
-            Circle()
-                .stroke(.white.opacity(0.10), lineWidth: lineWidth)
-            Circle()
-                .trim(from: 0, to: max(progress, 0.002))
-                .stroke(AngularGradient(colors: [.green, .mint, .green], center: .center),
-                        style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
-                .rotationEffect(.degrees(-90))
-                .animation(.easeOut(duration: 0.6), value: progress)
-        }
-    }
-}
 
 struct StatTile: View {
     var icon: String

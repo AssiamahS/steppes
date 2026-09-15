@@ -18,13 +18,7 @@ struct StepsLiveActivity: Widget {
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
-                    MiniRing(progress: context.state.progress, lineWidth: 6)
-                        .frame(width: 48, height: 48)
-                        .overlay {
-                            Image(systemName: "figure.walk")
-                                .font(.system(size: 18, weight: .semibold))
-                                .foregroundStyle(.green)
-                        }
+                    WalkRing(progress: context.state.progress, size: 48, lineWidth: 6, iconSize: 18)
                         .padding(.leading, 4)
                 }
                 DynamicIslandExpandedRegion(.trailing) {
@@ -66,13 +60,7 @@ struct StepsLiveActivity: Widget {
                     .padding(.horizontal, 8)
                 }
             } compactLeading: {
-                MiniRing(progress: context.state.progress, lineWidth: 3)
-                    .frame(width: 20, height: 20)
-                    .overlay {
-                        Image(systemName: "figure.walk")
-                            .font(.system(size: 9, weight: .bold))
-                            .foregroundStyle(.green)
-                    }
+                WalkRing(progress: context.state.progress, size: 20, lineWidth: 3, iconSize: 9)
                     .padding(.leading, 2)
             } compactTrailing: {
                 Text(context.state.steps, format: .number)
@@ -84,13 +72,7 @@ struct StepsLiveActivity: Widget {
                     .contentTransition(.numericText())
                     .padding(.trailing, 2)
             } minimal: {
-                MiniRing(progress: context.state.progress, lineWidth: 3)
-                    .frame(width: 20, height: 20)
-                    .overlay {
-                        Image(systemName: "figure.walk")
-                            .font(.system(size: 9, weight: .bold))
-                            .foregroundStyle(.green)
-                    }
+                WalkRing(progress: context.state.progress, size: 20, lineWidth: 3, iconSize: 9)
             }
             .keylineTint(.green)
         }
@@ -102,13 +84,7 @@ struct LockScreenStepsView: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            MiniRing(progress: state.progress, lineWidth: 7)
-                .frame(width: 56, height: 56)
-                .overlay {
-                    Image(systemName: "figure.walk")
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundStyle(.green)
-                }
+            WalkRing(progress: state.progress, size: 56, lineWidth: 7, iconSize: 20)
             VStack(alignment: .leading, spacing: 2) {
                 Text(state.steps, format: .number)
                     .font(.system(size: 30, weight: .heavy, design: .rounded))
@@ -132,18 +108,3 @@ struct LockScreenStepsView: View {
     }
 }
 
-struct MiniRing: View {
-    var progress: Double
-    var lineWidth: CGFloat
-
-    var body: some View {
-        ZStack {
-            Circle()
-                .stroke(.white.opacity(0.15), lineWidth: lineWidth)
-            Circle()
-                .trim(from: 0, to: max(progress, 0.01))
-                .stroke(.green, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
-                .rotationEffect(.degrees(-90))
-        }
-    }
-}
