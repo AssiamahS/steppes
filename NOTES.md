@@ -1,0 +1,2 @@
+- 2026-09-15 created: ASC 6812810412 "Steppes" repointed from com.assiamah.ccwatch.watchkitapp to com.assiamah.steppes (+ .widgets registered), internal group "Sly Internal" 7cdd8e02 + tester wired. Mac clock was 25h behind → every ASC JWT 401; no sudo for sntp, so the scratchpad asc.py helper offsets time.time() from Apple's Date header.
+- Live Activity can only be *requested* in the foreground; background paths (HealthKit observer, BGAppRefresh) only *update*. Don't try to re-mint the activity from a background wake — it throws.

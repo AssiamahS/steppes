@@ -1,0 +1,83 @@
+name: Steppes
+options:
+  bundleIdPrefix: com.assiamah
+  deploymentTarget:
+    iOS: "26.0"
+  xcodeVersion: "26.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    MARKETING_VERSION: 1.0.0
+    CURRENT_PROJECT_VERSION: 1
+    DEVELOPMENT_TEAM: QGMAWHX827
+    CODE_SIGN_STYLE: Automatic
+
+targets:
+  Steppes:
+    type: application
+    platform: iOS
+    sources:
+      - Steppes
+      - Shared
+    dependencies:
+      - target: SteppesWidgets
+    entitlements:
+      path: Steppes/Steppes.entitlements
+      properties:
+        com.apple.developer.healthkit: true
+    info:
+      path: Steppes/Info.plist
+      properties:
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        CFBundleDisplayName: Steppes
+        CFBundleIconName: AppIcon
+        UILaunchScreen:
+          UIColorName: LaunchColor
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        UIViewControllerBasedStatusBarAppearance: true
+        ITSAppUsesNonExemptEncryption: false
+        NSSupportsLiveActivities: true
+        NSSupportsLiveActivitiesFrequentUpdates: true
+        NSMotionUsageDescription: Steppes reads your step count from the motion coprocessor to show today's steps live in the Dynamic Island.
+        NSHealthShareUsageDescription: Steppes reads your step count from Health so the Dynamic Island can keep updating while the app is in the background.
+        NSHealthUpdateUsageDescription: Steppes does not write to Health.
+        UIBackgroundModes: [fetch, processing]
+        BGTaskSchedulerPermittedIdentifiers: [com.assiamah.steppes.refresh]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.assiamah.steppes
+        TARGETED_DEVICE_FAMILY: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        INFOPLIST_KEY_UIUserInterfaceStyle: Dark
+
+  SteppesWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - SteppesWidgets
+      - Shared
+    info:
+      path: SteppesWidgets/Info.plist
+      properties:
+        CFBundleDisplayName: Steppes
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.assiamah.steppes.widgets
+        SKIP_INSTALL: true
+        TARGETED_DEVICE_FAMILY: "1"
+
+schemes:
+  Steppes:
+    build:
+      targets:
+        Steppes: all
+        SteppesWidgets: all
+    run:
+      config: Debug
