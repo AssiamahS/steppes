@@ -1,5 +1,7 @@
 # Steppes
 
+**Install:** open [assiamahs.github.io/steppes/install.html](https://assiamahs.github.io/steppes/install.html) in Safari on your iPhone.
+
 Today's step count, pinned in the Dynamic Island.
 
 - iPhone app (iOS 26, SwiftUI, Liquid Glass) with a progress ring, distance, floors and a daily goal.
