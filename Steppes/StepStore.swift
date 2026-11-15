@@ -4,6 +4,7 @@ import HealthKit
 import ActivityKit
 import BackgroundTasks
 import Observation
+import WidgetKit
 
 struct DaySnapshot: Equatable {
     var steps: Int = 0
@@ -30,11 +31,13 @@ final class StepStore {
     static let refreshTaskID = "com.assiamah.steppes.refresh"
 
     var snapshot = DaySnapshot()
+    /// Last 7 days, oldest first, today last. Mirrored to the widgets.
+    private(set) var week: WeekSnapshot
     var motionDenied = false
     var goal: Int {
         didSet {
             UserDefaults.standard.set(goal, forKey: "goal")
-            Task { await pushActivity() }
+            Task { await publish() }
         }
     }
     var islandOn: Bool {
@@ -48,10 +51,15 @@ final class StepStore {
     private var liveFrom: Date?
     private var observerRunning = false
     private var healthAsked = false
+    private var pastDays: [Date: Int] = [:]
+    private var lastWidgetReload = Date.distantPast
 
     private init() {
         goal = UserDefaults.standard.object(forKey: "goal") as? Int ?? 10_000
         islandOn = UserDefaults.standard.object(forKey: "islandOn") as? Bool ?? true
+        let savedGoal = UserDefaults.standard.object(forKey: "goal") as? Int ?? 10_000
+        week = SharedStore.load()?.rolled() ?? .empty(goal: savedGoal)
+        pastDays = Dictionary(week.days.dropLast().map { ($0.day, $0.steps) }, uniquingKeysWith: max)
     }
 
     // MARK: - Lifecycle
@@ -101,7 +109,7 @@ final class StepStore {
                     return
                 }
                 self.apply(data)
-                await self.pushActivity()
+                await self.publish()
             }
         }
     }
@@ -111,9 +119,10 @@ final class StepStore {
         let from = startOfToday
         if CMPedometer.isStepCountingAvailable(), CMPedometer.authorizationStatus() != .denied {
             do {
-                let data = try await queryPedometer(from: from)
+                let data = try await queryPedometer(from: from, to: .now)
                 apply(data)
-                await pushActivity()
+                await refreshPastDays()
+                await publish()
                 return
             } catch {
                 handle(motionError: error)
@@ -122,13 +131,14 @@ final class StepStore {
         if let steps = try? await healthSteps(from: from) {
             snapshot.steps = steps
             snapshot.updatedAt = .now
-            await pushActivity()
         }
+        await refreshPastDays()
+        await publish()
     }
 
-    private func queryPedometer(from: Date) async throws -> CMPedometerData {
+    private func queryPedometer(from: Date, to: Date) async throws -> CMPedometerData {
         try await withCheckedThrowingContinuation { cont in
-            pedometer.queryPedometerData(from: from, to: .now) { data, error in
+            pedometer.queryPedometerData(from: from, to: to) { data, error in
                 if let data {
                     cont.resume(returning: data)
                 } else {
@@ -187,6 +197,68 @@ final class StepStore {
             options: .cumulativeSum)
         let stats = try await descriptor.result(for: health)
         return Int(stats?.sumQuantity()?.doubleValue(for: .count()) ?? 0)
+    }
+
+    /// Per-day sums from Health, keyed by start of day. Empty when Health
+    /// access was never granted (reads fail silently by design).
+    private func healthDaily(from: Date, to: Date) async throws -> [Date: Int] {
+        let samples = HKQuery.predicateForSamples(withStart: from, end: to)
+        let descriptor = HKStatisticsCollectionQueryDescriptor(
+            predicate: .quantitySample(type: stepType, predicate: samples),
+            options: .cumulativeSum,
+            anchorDate: from,
+            intervalComponents: DateComponents(day: 1))
+        let collection = try await descriptor.result(for: health)
+        var out: [Date: Int] = [:]
+        for stats in collection.statistics() {
+            out[stats.startDate] = Int(stats.sumQuantity()?.doubleValue(for: .count()) ?? 0)
+        }
+        return out
+    }
+
+    // MARK: - Week (chart + widgets)
+
+    /// Re-reads the six days before today. Health is the better source (it
+    /// merges the Watch), the pedometer keeps 7 days on-device and covers the
+    /// case where Health access is off — take whichever saw more steps.
+    private func refreshPastDays() async {
+        let cal = Calendar.current
+        let today = startOfToday
+        guard let start = cal.date(byAdding: .day, value: -(WeekSnapshot.length - 1), to: today) else { return }
+        var counts = (try? await healthDaily(from: start, to: today)) ?? [:]
+        if CMPedometer.isStepCountingAvailable(), CMPedometer.authorizationStatus() != .denied {
+            for back in 1..<WeekSnapshot.length {
+                guard let day = cal.date(byAdding: .day, value: -back, to: today),
+                      let next = cal.date(byAdding: .day, value: 1, to: day),
+                      let data = try? await queryPedometer(from: day, to: next) else { continue }
+                counts[day] = max(counts[day] ?? 0, data.numberOfSteps.intValue)
+            }
+        }
+        // A failed read must not wipe days we already know about.
+        for (day, steps) in pastDays where day >= start && day < today {
+            counts[day] = max(counts[day] ?? 0, steps)
+        }
+        counts[today] = nil
+        pastDays = counts
+    }
+
+    /// Push the current numbers everywhere they're mirrored: the in-app
+    /// chart, the widgets' shared snapshot, and the Live Activity.
+    private func publish() async {
+        var counts = pastDays
+        counts[startOfToday] = snapshot.steps
+        let next = WeekSnapshot.build(counts: counts, goal: goal)
+        let changed = next.days != week.days || next.goal != week.goal
+        week = next
+        if changed {
+            SharedStore.save(next)
+            // Reloads are budgeted by iOS; live pedometer ticks arrive every few seconds.
+            if Date.now.timeIntervalSince(lastWidgetReload) > 60 {
+                lastWidgetReload = .now
+                WidgetCenter.shared.reloadAllTimelines()
+            }
+        }
+        await pushActivity()
     }
 
     // MARK: - Live Activity

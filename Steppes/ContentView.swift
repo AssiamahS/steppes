@@ -3,6 +3,7 @@ import UIKit
 
 struct ContentView: View {
     private let store = StepStore.shared
+    @State private var selectedDay: Date?
 
     var body: some View {
         NavigationStack {
@@ -10,6 +11,7 @@ struct ContentView: View {
                 VStack(spacing: 18) {
                     ringCard
                     statsRow
+                    weekCard
                     islandCard
                     goalCard
                     if store.motionDenied { permissionCard }
@@ -86,6 +88,66 @@ struct ContentView: View {
             StatTile(icon: "target",
                      value: "\(max(store.goal - store.snapshot.steps, 0).formatted())",
                      label: "To go")
+        }
+    }
+
+    /// The day the header describes: the tapped bar, else today.
+    private var focusDay: DaySteps? {
+        store.week.days.first { $0.day == selectedDay } ?? store.week.days.last
+    }
+
+    private var weekCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("TOTAL")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Text(focusDay?.steps ?? 0, format: .number)
+                            .font(.system(size: 34, weight: .heavy, design: .rounded))
+                            .monospacedDigit()
+                            .contentTransition(.numericText())
+                        Text("steps")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                    Text(focusDay?.day ?? .now, format: .dateTime.weekday(.wide).month(.abbreviated).day())
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Label("Last 7 days", systemImage: "chart.bar.fill")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.green)
+            }
+            WeekBars(days: store.week.days, goal: store.goal, selected: selectedDay) { day in
+                withAnimation(.snappy) {
+                    selectedDay = selectedDay == day ? nil : day
+                }
+            }
+            .frame(height: 170)
+            .animation(.easeOut(duration: 0.4), value: store.week.days)
+            Divider().overlay(.white.opacity(0.12))
+            HStack {
+                weekStat("Average", store.week.average)
+                Spacer()
+                weekStat("Best day", store.week.best)
+                Spacer()
+                weekStat("7-day total", store.week.total)
+            }
+        }
+        .padding(16)
+        .card()
+    }
+
+    private func weekStat(_ label: String, _ value: Int) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(value, format: .number)
+                .font(.headline.monospacedDigit())
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
         }
     }
 

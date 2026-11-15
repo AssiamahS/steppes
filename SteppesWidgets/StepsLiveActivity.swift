@@ -5,6 +5,7 @@ import ActivityKit
 @main
 struct SteppesWidgetBundle: WidgetBundle {
     var body: some Widget {
+        StepsWidget()
         StepsLiveActivity()
     }
 }
